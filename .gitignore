@@ -1,0 +1,4 @@
+fixtures/private/
+.venv/
+/deja
+.build.log

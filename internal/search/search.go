@@ -1,0 +1,213 @@
+package search
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/vshulcz/deja-vu/internal/model"
+)
+
+type Options struct {
+	Query                  string
+	Regex                  bool
+	Harness, Project, Role string
+	Since                  time.Duration
+	All, JSON              bool
+}
+type Hit struct {
+	Session  model.Session `json:"session"`
+	Count    int           `json:"count"`
+	Snippets []string      `json:"snippets"`
+	Score    float64       `json:"score"`
+}
+
+func Run(ss []model.Session, o Options) ([]Hit, error) {
+	var re *regexp.Regexp
+	qlow := strings.ToLower(o.Query)
+	if o.Regex {
+		var err error
+		re, err = regexp.Compile("(?i)" + o.Query)
+		if err != nil {
+			return nil, err
+		}
+	}
+	cut := time.Time{}
+	if o.Since > 0 {
+		cut = time.Now().Add(-o.Since)
+	}
+	var hits []Hit
+	for _, s := range mergeSessions(ss) {
+		if o.Harness != "" && s.Harness != o.Harness {
+			continue
+		}
+		if o.Project != "" && !strings.Contains(strings.ToLower(s.Project), strings.ToLower(o.Project)) {
+			continue
+		}
+		if !cut.IsZero() && s.Updated.Before(cut) {
+			continue
+		}
+		h := Hit{Session: s}
+		for _, m := range s.Messages {
+			if o.Role != "" && m.Role != o.Role {
+				continue
+			}
+			c := 0
+			if re != nil {
+				c = len(re.FindAllStringIndex(m.Text, -1))
+			} else if strings.Contains(strings.ToLower(m.Text), qlow) {
+				c = strings.Count(strings.ToLower(m.Text), qlow)
+			}
+			if c > 0 {
+				h.Count += c
+				if len(h.Snippets) < 3 {
+					h.Snippets = append(h.Snippets, snippet(m.Text, o.Query, re))
+				}
+			}
+		}
+		if h.Count > 0 {
+			age := time.Since(s.Updated).Hours() / 24
+			h.Score = float64(h.Count) * 1000 / (1 + age)
+			hits = append(hits, h)
+		}
+	}
+	sort.Slice(hits, func(i, j int) bool {
+		if hits[i].Score == hits[j].Score {
+			return hits[i].Session.Updated.After(hits[j].Session.Updated)
+		}
+		return hits[i].Score > hits[j].Score
+	})
+	if !o.All && len(hits) > 15 {
+		hits = hits[:15]
+	}
+	return hits, nil
+}
+
+func mergeSessions(in []model.Session) []model.Session {
+	by := map[string]*model.Session{}
+	for _, s := range in {
+		k := s.Harness + ":" + s.ID
+		if by[k] == nil {
+			cp := s
+			by[k] = &cp
+		} else {
+			by[k].Messages = append(by[k].Messages, s.Messages...)
+			by[k].Touch(s.Updated)
+			if by[k].Project == "history" {
+				by[k].Project = s.Project
+			}
+		}
+	}
+	out := make([]model.Session, 0, len(by))
+	for _, s := range by {
+		out = append(out, *s)
+	}
+	return out
+}
+
+func Print(w io.Writer, hits []Hit, o Options) {
+	if o.JSON {
+		json.NewEncoder(w).Encode(hits)
+		return
+	}
+	for _, h := range hits {
+		d := "-"
+		if !h.Session.Updated.IsZero() {
+			d = h.Session.Updated.Format("2006-01-02")
+		}
+		fmt.Fprintf(w, "[%s · %s · %s · %s] %d matches\n", h.Session.Harness, h.Session.Project, d, short(h.Session.ID), h.Count)
+		for _, sn := range h.Snippets {
+			fmt.Fprintf(w, "  %s\n", highlight(sn, o.Query, o.Regex))
+		}
+	}
+}
+
+func FindByPrefix(ss []model.Session, p string) (model.Session, bool) {
+	for _, s := range mergeSessions(ss) {
+		if strings.HasPrefix(s.ID, p) {
+			return s, true
+		}
+	}
+	return model.Session{}, false
+}
+
+func PrintSession(w io.Writer, s model.Session) {
+	fmt.Fprintf(w, "# %s · %s · %s\n", s.Harness, s.Project, s.ID)
+	for _, m := range s.Messages {
+		txt := collapseTool(m.Text)
+		if strings.TrimSpace(txt) == "" {
+			continue
+		}
+		t := ""
+		if !m.Time.IsZero() {
+			t = m.Time.Format("2006-01-02 15:04") + " "
+		}
+		fmt.Fprintf(w, "\n%s%s:\n%s\n", t, m.Role, txt)
+	}
+}
+
+func Recent(ss []model.Session, n int) []model.Session {
+	out := mergeSessions(ss)
+	sort.Slice(out, func(i, j int) bool { return out[i].Updated.After(out[j].Updated) })
+	if n > 0 && len(out) > n {
+		out = out[:n]
+	}
+	return out
+}
+
+func snippet(s, q string, re *regexp.Regexp) string {
+	r := []rune(s)
+	idx := 0
+	if re != nil {
+		loc := re.FindStringIndex(s)
+		if loc != nil {
+			idx = utf8.RuneCountInString(s[:loc[0]])
+		}
+	} else {
+		b := strings.Index(strings.ToLower(s), strings.ToLower(q))
+		if b > 0 {
+			idx = utf8.RuneCountInString(s[:b])
+		}
+	}
+	start := idx - 70
+	if start < 0 {
+		start = 0
+	}
+	end := start + 180
+	if end > len(r) {
+		end = len(r)
+	}
+	return strings.TrimSpace(string(r[start:end]))
+}
+func short(s string) string {
+	if len(s) > 12 {
+		return s[:12]
+	}
+	return s
+}
+func highlight(s, q string, isRe bool) string {
+	if os.Getenv("NO_COLOR") != "" {
+		return s
+	}
+	if isRe {
+		re, err := regexp.Compile("(?i)" + q)
+		if err == nil {
+			return re.ReplaceAllStringFunc(s, func(x string) string { return "\x1b[7m" + x + "\x1b[0m" })
+		}
+	}
+	return regexp.MustCompile(`(?i)`+regexp.QuoteMeta(q)).ReplaceAllStringFunc(s, func(x string) string { return "\x1b[7m" + x + "\x1b[0m" })
+}
+func collapseTool(s string) string {
+	if strings.Contains(s, "tool_use") || strings.Contains(s, "tool_result") || strings.Contains(s, "<local-command") {
+		if utf8.RuneCountInString(s) > 400 {
+			return "[tool/local output collapsed]"
+		}
+	}
+	return s
+}
