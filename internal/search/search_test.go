@@ -1,6 +1,8 @@
 package search
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,5 +25,16 @@ func TestSearchRanksAndFilters(t *testing.T) {
 	}
 	if len(hits) != 1 || hits[0].Session.ID != "b" {
 		t.Fatalf("bad filter: %#v", hits)
+	}
+}
+
+func TestPrintPlainWhenNotTTY(t *testing.T) {
+	now := time.Now()
+	hits := []Hit{{Session: model.Session{ID: "abcdef1234567890", Harness: "opencode", Project: "deja", Updated: now}, Count: 1, Snippets: []string{"hello needle"}}}
+	var b bytes.Buffer
+	Print(&b, hits, Options{Query: "needle"})
+	out := b.String()
+	if strings.Contains(out, "\x1b[") || !strings.Contains(out, "[opencode]") || !strings.Contains(out, "1 matches") {
+		t.Fatalf("bad plain output: %q", out)
 	}
 }

@@ -1,7 +1,6 @@
 package sources
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -49,18 +48,31 @@ func ParseOpencodeDBWhere(db, where string, limit int) ([]model.Session, error) 
 	}
 	q := `select s.id,s.directory,s.title,s.time_created,s.time_updated,m.data as mdata,p.data as pdata from session s join message m on m.session_id=s.id join part p on p.message_id=m.id where json_extract(p.data,'$.type')='text'` + where + ` order by s.time_updated desc,m.time_created,p.id` + lim
 	cmd := exec.Command("sqlite3", "-json", db, q)
-	b, err := cmd.Output()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.UseNumber()
-	var rows []map[string]any
-	if err := dec.Decode(&rows); err != nil {
+	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
+	dec := json.NewDecoder(stdout)
+	dec.UseNumber()
+	tok, err := dec.Token()
+	if err != nil {
+		cmd.Wait()
+		return nil, err
+	}
+	if d, ok := tok.(json.Delim); !ok || d != '[' {
+		cmd.Wait()
+		return nil, fmt.Errorf("bad sqlite json")
+	}
 	by := map[string]*model.Session{}
-	for _, r := range rows {
+	for dec.More() {
+		var r map[string]any
+		if err := dec.Decode(&r); err != nil {
+			cmd.Wait()
+			return nil, err
+		}
 		id, _ := r["id"].(string)
 		if id == "" {
 			continue
@@ -79,12 +91,22 @@ func ParseOpencodeDBWhere(db, where string, limit int) ([]model.Session, error) 
 		if txt == "" {
 			continue
 		}
+		if len(txt) > 64*1024 {
+			txt = txt[:64*1024]
+		}
 		t := parseNestedTime(pd, "time", "start")
 		if t.IsZero() {
 			t = parseNestedTime(md, "time", "created")
 		}
 		s.Touch(t)
 		s.Messages = append(s.Messages, model.Message{Role: role, Text: txt, Time: t})
+	}
+	if _, err := dec.Token(); err != nil {
+		cmd.Wait()
+		return nil, err
+	}
+	if err := cmd.Wait(); err != nil {
+		return nil, err
 	}
 	var out []model.Session
 	for _, s := range by {

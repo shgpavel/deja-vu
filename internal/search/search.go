@@ -14,6 +14,16 @@ import (
 	"github.com/vshulcz/deja-vu/internal/model"
 )
 
+const (
+	cReset  = "\x1b[0m"
+	cDim    = "\x1b[2m"
+	cBold   = "\x1b[1m"
+	cOrange = "\x1b[38;5;208m"
+	cGreen  = "\x1b[32m"
+	cBlue   = "\x1b[34m"
+	cMatch  = "\x1b[48;5;236;38;5;230m"
+)
+
 type Options struct {
 	Query                  string
 	Regex                  bool
@@ -116,14 +126,19 @@ func Print(w io.Writer, hits []Hit, o Options) {
 		json.NewEncoder(w).Encode(hits)
 		return
 	}
+	color := colorOK(w)
 	for _, h := range hits {
 		d := "-"
 		if !h.Session.Updated.IsZero() {
-			d = h.Session.Updated.Format("2006-01-02")
+			d = relativeDate(h.Session.Updated)
 		}
-		fmt.Fprintf(w, "[%s · %s · %s · %s] %d matches\n", h.Session.Harness, h.Session.Project, d, short(h.Session.ID), h.Count)
+		if color {
+			fmt.Fprintf(w, "%s%s %-10s %s %s %s %s %s%s%d matches%s\n", cBold, harnessTag(h.Session.Harness, true), h.Session.Project, cDim+"·"+cReset+cBold, d, cDim+"·"+cReset+cBold, short(h.Session.ID), cDim+"— "+cReset, cBold, h.Count, cReset)
+		} else {
+			fmt.Fprintf(w, "[%s] %-10s · %s · %s — %d matches\n", h.Session.Harness, h.Session.Project, d, short(h.Session.ID), h.Count)
+		}
 		for _, sn := range h.Snippets {
-			fmt.Fprintf(w, "  %s\n", highlight(sn, o.Query, o.Regex))
+			fmt.Fprintf(w, "  %s\n", highlight(sn, o.Query, o.Regex, color))
 		}
 	}
 }
@@ -191,17 +206,67 @@ func short(s string) string {
 	}
 	return s
 }
-func highlight(s, q string, isRe bool) string {
-	if os.Getenv("NO_COLOR") != "" {
+func highlight(s, q string, isRe bool, color bool) string {
+	if !color {
 		return s
 	}
 	if isRe {
 		re, err := regexp.Compile("(?i)" + q)
 		if err == nil {
-			return re.ReplaceAllStringFunc(s, func(x string) string { return "\x1b[7m" + x + "\x1b[0m" })
+			return re.ReplaceAllStringFunc(s, func(x string) string { return cMatch + x + cReset })
 		}
 	}
-	return regexp.MustCompile(`(?i)`+regexp.QuoteMeta(q)).ReplaceAllStringFunc(s, func(x string) string { return "\x1b[7m" + x + "\x1b[0m" })
+	return regexp.MustCompile(`(?i)`+regexp.QuoteMeta(q)).ReplaceAllStringFunc(s, func(x string) string { return cMatch + x + cReset })
+}
+
+func colorOK(w io.Writer) bool {
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	st, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return st.Mode()&os.ModeCharDevice != 0
+}
+
+func harnessTag(h string, color bool) string {
+	tag := "[" + h + "]"
+	if !color {
+		return tag
+	}
+	switch h {
+	case "claude":
+		return cOrange + tag + cReset + cBold
+	case "codex":
+		return cGreen + tag + cReset + cBold
+	case "opencode":
+		return cBlue + tag + cReset + cBold
+	}
+	return tag
+}
+
+func relativeDate(t time.Time) string {
+	now := time.Now()
+	y1, m1, d1 := now.Date()
+	y2, m2, d2 := t.Date()
+	today := time.Date(y1, m1, d1, 0, 0, 0, 0, now.Location())
+	day := time.Date(y2, m2, d2, 0, 0, 0, 0, now.Location())
+	days := int(today.Sub(day).Hours() / 24)
+	if days == 0 {
+		return "today"
+	}
+	if days > 0 && days < 7 {
+		return fmt.Sprintf("%dd ago", days)
+	}
+	if y1 == y2 {
+		return t.Format("Jan 2")
+	}
+	return t.Format("Jan 2 2006")
 }
 func collapseTool(s string) string {
 	if strings.Contains(s, "tool_use") || strings.Contains(s, "tool_result") || strings.Contains(s, "<local-command") {

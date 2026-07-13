@@ -18,9 +18,9 @@ func LoadClaude() []model.Session {
 }
 
 func ParseClaudeFile(path string) ([]model.Session, error) {
-	s := model.Session{Harness: "claude", ID: strings.TrimSuffix(filepath.Base(path), ".jsonl"), Project: projectName(filepath.Dir(path)), Path: path}
+	s := model.Session{Harness: "claude", ID: strings.TrimSuffix(filepath.Base(path), ".jsonl"), Project: claudeProjectName(filepath.Dir(path)), Path: path}
 	if filepath.Base(filepath.Dir(path)) == "subagents" {
-		s.Project = projectName(filepath.Dir(filepath.Dir(path)))
+		s.Project = claudeProjectName(filepath.Dir(filepath.Dir(path)))
 	}
 	err := scanJSONL(path, func(m map[string]any) {
 		typ, _ := m["type"].(string)
@@ -29,9 +29,6 @@ func ParseClaudeFile(path string) ([]model.Session, error) {
 		}
 		if id, _ := m["sessionId"].(string); id != "" {
 			s.ID = id
-		}
-		if cwd, _ := m["cwd"].(string); cwd != "" {
-			s.Project = projectName(cwd)
 		}
 		t := parseTimeAny(m["timestamp"])
 		s.Touch(t)
@@ -51,4 +48,25 @@ func ParseClaudeFile(path string) ([]model.Session, error) {
 		return nil, err
 	}
 	return []model.Session{s}, err
+}
+
+func claudeProjectName(dir string) string {
+	base := filepath.Base(dir)
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		return "-"
+	}
+	parts := strings.Split(base, "-")
+	var clean []string
+	for _, p := range parts {
+		if p != "" {
+			clean = append(clean, p)
+		}
+	}
+	if len(clean) == 0 {
+		return base
+	}
+	if len(clean) == 1 {
+		return clean[0]
+	}
+	return filepath.Join(clean[len(clean)-2], clean[len(clean)-1])
 }

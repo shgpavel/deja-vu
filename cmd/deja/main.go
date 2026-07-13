@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/vshulcz/deja-vu/internal/index"
 	"github.com/vshulcz/deja-vu/internal/model"
 	"github.com/vshulcz/deja-vu/internal/search"
 	"github.com/vshulcz/deja-vu/internal/sources"
@@ -87,11 +89,27 @@ func run(args []string) error {
 		}
 		return nil
 	}
-	o, err := parseSearch(args)
+	force := false
+	var filtered []string
+	for _, a := range args {
+		if a == "--rebuild" || a == "-rebuild" {
+			force = true
+			continue
+		}
+		filtered = append(filtered, a)
+	}
+	o, err := parseSearch(filtered)
 	if err != nil {
 		return err
 	}
-	hits, err := search.Run(loadForSearch(o), o)
+	if err := index.EnsureForSearch(index.DefaultDir(), o, force, os.Stderr); err != nil {
+		return err
+	}
+	ss, err := index.Search(index.DefaultDir(), o)
+	if err != nil {
+		return err
+	}
+	hits, err := search.Run(ss, o)
 	if err != nil {
 		return err
 	}
@@ -154,24 +172,48 @@ func printSources() {
 		load       func() []model.Session
 	}{{"claude", sources.ClaudeRoot(), sources.LoadClaude}, {"codex", sources.CodexRoot(), sources.LoadCodex}}
 	for _, it := range items {
-		var size int64
-		if fi, err := os.Stat(it.root); err == nil {
-			size = fi.Size()
-		}
+		size := pathSize(it.root)
 		ss := it.load()
 		msg := 0
 		for _, s := range ss {
 			msg += len(s.Messages)
 		}
-		fmt.Printf("%s\t%s\tsessions=%d messages=%d size=%d\n", it.name, it.root, len(ss), msg, size)
+		fmt.Printf("%s\t%s\tsessions=%d messages=%d size=%s\n", it.name, it.root, len(ss), msg, humanBytes(size))
 	}
 	var size int64
 	if fi, err := os.Stat(sources.OpencodeDB()); err == nil {
 		size = fi.Size()
 	}
 	s, m, _ := sources.OpencodeCounts()
-	fmt.Printf("opencode\t%s\tsessions=%d messages=%d size=%d\n", sources.OpencodeDB(), s, m, size)
+	fmt.Printf("opencode\t%s\tsessions=%d messages=%d size=%s\n", sources.OpencodeDB(), s, m, humanBytes(size))
+}
+
+func pathSize(root string) int64 {
+	var total int64
+	filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			if fi, e := d.Info(); e == nil {
+				total += fi.Size()
+			}
+		}
+		return nil
+	})
+	return total
+}
+
+func humanBytes(n int64) string {
+	units := []string{"B", "KB", "MB", "GB", "TB"}
+	f := float64(n)
+	i := 0
+	for f >= 1024 && i < len(units)-1 {
+		f /= 1024
+		i++
+	}
+	if i == 0 {
+		return fmt.Sprintf("%d B", n)
+	}
+	return fmt.Sprintf("%.1f %s", f, units[i])
 }
 func usage() {
-	fmt.Println("usage: deja [--json] [--re] [--harness name] [--project p] [--since 30d] [--role user] <query>\n       deja show <id-prefix>\n       deja last [n]\n       deja sources")
+	fmt.Println("usage: deja [--json] [--re] [--rebuild] [--harness name] [--project p] [--since 30d] [--role user] <query>\n       deja show <id-prefix>\n       deja last [n]\n       deja sources")
 }

@@ -1,6 +1,7 @@
 package sources
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -15,6 +16,26 @@ func TestParseClaudeFile(t *testing.T) {
 	}
 	if ss[0].Messages[1].Text != "The frobnicator bug is in parser.go" {
 		t.Fatalf("bad text: %q", ss[0].Messages[1].Text)
+	}
+}
+
+func TestParseClaudeProjectFromEncodedDirectory(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "-Users-shulcz-deja-vu")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(dir, "session.jsonl")
+	line := `{"type":"user","sessionId":"s1","cwd":"/wrong/project","timestamp":"2026-01-02T03:04:05Z","message":{"role":"user","content":"hello"}}` + "\n"
+	if err := os.WriteFile(p, []byte(line), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ss, err := ParseClaudeFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ss) != 1 || ss[0].Project != filepath.Join("deja", "vu") {
+		t.Fatalf("project came from wrong source: %#v", ss)
 	}
 }
 
