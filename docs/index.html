@@ -11,87 +11,182 @@
 <meta property="og:description" content="Your agents already solved this. deja finds it. One local index across Claude Code, Codex and opencode, served back to agents via MCP.">
 <meta property="og:url" content="https://vshulcz.github.io/deja-vu/">
 <meta property="og:image" content="https://raw.githubusercontent.com/vshulcz/deja-vu/main/assets/demo.gif">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔁</text></svg>">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <style>
-:root{--bg:#0f0e17;--panel:#17162299;--ink:#e8e6f0;--dim:#8a87a0;--a1:#7c6cf0;--a2:#4ecdc4;--mono:"SF Mono","JetBrains Mono","Fira Code",Menlo,Consolas,monospace}
+:root{--bg:#0b0a12;--panel:#141322;--line:#262439;--ink:#eceaf6;--dim:#918ea6;--a1:#7c6cf0;--a2:#4ecdc4;--mono:"SF Mono","JetBrains Mono","Fira Code",Menlo,Consolas,monospace}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:880px;margin:0 auto;padding:0 20px}
-header{padding:72px 0 40px;text-align:center}
-header img.logo{width:min(360px,80vw)}
-.tagline{font-size:1.25rem;color:var(--dim);margin-top:8px}
-.hero-install{margin:28px auto 0;max-width:640px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid #2a2838;border-radius:10px;padding:12px 16px;font-family:var(--mono);font-size:.95rem;overflow-x:auto}
-.hero-install code{color:var(--a2);white-space:nowrap}
-.copy{margin-left:auto;background:none;border:1px solid #3a3850;color:var(--dim);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.8rem}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.glow{position:fixed;inset:0;pointer-events:none;background:
+ radial-gradient(600px 340px at 50% -80px,#7c6cf022,transparent 70%),
+ radial-gradient(500px 300px at 85% 15%,#4ecdc411,transparent 70%)}
+.wrap{max-width:920px;margin:0 auto;padding:0 22px;position:relative}
+nav{display:flex;align-items:center;gap:18px;padding:20px 0}
+nav .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.05rem}
+nav .brand img{width:26px;height:26px}
+nav .spacer{flex:1}
+nav a{color:var(--dim);font-size:.92rem}
+nav a:hover{color:var(--ink);text-decoration:none}
+header{padding:64px 0 24px;text-align:center}
+h1{font-size:clamp(2rem,5.4vw,3.2rem);line-height:1.12;letter-spacing:-.02em;font-weight:800}
+h1 .grad{background:linear-gradient(92deg,var(--a1),var(--a2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--dim);font-size:1.12rem;max-width:640px;margin:18px auto 0}
+.sub code{font-family:var(--mono);font-size:.92em;color:var(--a2)}
+.cta{display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap}
+.btn{border-radius:10px;padding:11px 22px;font-size:.95rem;font-weight:600;border:1px solid var(--line);color:var(--ink)}
+.btn:hover{text-decoration:none;border-color:var(--a1)}
+.btn.primary{background:linear-gradient(92deg,var(--a1),#5f54c9);border:none;color:#fff;box-shadow:0 4px 24px #7c6cf03d}
+.btn.primary:hover{filter:brightness(1.08)}
+.hero-install{margin:34px auto 0;max-width:660px;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px;font-family:var(--mono);font-size:.9rem;box-shadow:0 8px 40px #00000055}
+.hero-install .p{color:#5e5b73;user-select:none}
+.hero-install code{color:var(--a2);white-space:nowrap;overflow-x:auto;scrollbar-width:none}
+.copy{margin-left:auto;flex:none;background:#1d1b30;border:1px solid var(--line);color:var(--dim);border-radius:7px;padding:5px 12px;cursor:pointer;font-size:.78rem;font-family:inherit}
 .copy:hover{color:var(--ink);border-color:var(--a1)}
-.demo{margin:40px 0;text-align:center}
-.demo img{max-width:100%;border-radius:12px;border:1px solid #2a2838}
-.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:48px 0}
-.card{background:var(--panel);border:1px solid #2a2838;border-radius:12px;padding:22px}
+.term{margin:52px auto 0;max-width:860px;border-radius:14px;border:1px solid var(--line);background:#100f1c;box-shadow:0 24px 80px #00000077;overflow:hidden}
+.term .bar{display:flex;align-items:center;gap:7px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.term .bar i{width:11px;height:11px;border-radius:50%;display:block}
+.term .bar i:nth-child(1){background:#ff5f57}.term .bar i:nth-child(2){background:#febc2e}.term .bar i:nth-child(3){background:#28c840}
+.term .bar span{margin-left:8px;color:#5e5b73;font-size:.78rem;font-family:var(--mono)}
+.term img{display:block;width:100%}
+section{margin-top:88px}
+h2{font-size:1.5rem;letter-spacing:-.01em;margin-bottom:6px}
+.lead{color:var(--dim);margin-bottom:26px}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;transition:border-color .2s}
+.card:hover{border-color:#3a3756}
+.card .ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#7c6cf022,#4ecdc422);margin-bottom:14px}
+.card .ic svg{width:20px;height:20px;stroke:var(--a2);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .card h3{font-size:1.02rem;margin-bottom:8px}
-.card h3 span{background:linear-gradient(90deg,var(--a1),var(--a2));-webkit-background-clip:text;background-clip:text;color:transparent}
-.card p{color:var(--dim);font-size:.93rem}
-h2{margin:56px 0 16px;font-size:1.3rem}
-.installs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-.inst{background:var(--panel);border:1px solid #2a2838;border-radius:10px;padding:14px 16px}
-.inst .k{color:var(--dim);font-size:.78rem;text-transform:uppercase;letter-spacing:.08em}
-.inst pre{font-family:var(--mono);font-size:.83rem;color:var(--a2);margin-top:6px;overflow-x:auto}
-.how{color:var(--dim)}
+.card p{color:var(--dim);font-size:.92rem}
+.card p code{font-family:var(--mono);font-size:.88em;color:var(--ink)}
+.chat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;max-width:720px;margin:0 auto}
+.msg{display:flex;gap:12px;margin-bottom:18px}
+.msg:last-child{margin-bottom:0}
+.msg .who{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700}
+.msg.you .who{background:#26243a;color:var(--dim)}
+.msg.ai .who{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff}
+.msg .bubble{font-size:.95rem;padding-top:5px}
+.msg.ai .bubble code{font-family:var(--mono);font-size:.86em;background:#1d1b30;padding:1px 6px;border-radius:5px;color:var(--a2)}
+.msg .tool{font-family:var(--mono);font-size:.78rem;color:#5e5b73;margin-bottom:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;text-align:center}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 10px}
+.stat b{display:block;font-size:1.7rem;letter-spacing:-.02em;background:linear-gradient(92deg,var(--a1),var(--a2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat span{color:var(--dim);font-size:.84rem}
+.installs{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.inst{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.inst .k{color:var(--dim);font-size:.75rem;text-transform:uppercase;letter-spacing:.1em}
+.inst .row{display:flex;align-items:center;gap:8px}
+.inst pre{font-family:var(--mono);font-size:.82rem;color:var(--a2);overflow-x:auto;scrollbar-width:none;flex:1}
+.how{color:var(--dim);max-width:760px}
 .how code{font-family:var(--mono);color:var(--ink);font-size:.9em}
-footer{margin:72px 0 40px;text-align:center;color:var(--dim);font-size:.9rem}
+footer{margin:96px 0 44px;padding-top:28px;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;color:var(--dim);font-size:.9rem;flex-wrap:wrap}
+footer .spacer{flex:1}
 a{color:var(--a2);text-decoration:none}
 a:hover{text-decoration:underline}
-.gh{display:inline-block;margin-top:20px;border:1px solid #3a3850;border-radius:8px;padding:10px 22px;color:var(--ink)}
-.gh:hover{border-color:var(--a1);text-decoration:none}
+@media(max-width:600px){.hero-install{font-size:.78rem}}
 </style>
 </head>
 <body>
+<div class="glow"></div>
 <div class="wrap">
 
+<nav>
+  <span class="brand"><img src="assets/favicon.svg" alt="">deja-vu</span>
+  <span class="spacer"></span>
+  <a href="#install">Install</a>
+  <a href="https://github.com/vshulcz/deja-vu/blob/main/docs/ARCHITECTURE.md">Docs</a>
+  <a href="https://github.com/vshulcz/deja-vu">GitHub</a>
+</nav>
+
 <header>
-  <img class="logo" src="assets/logo.svg" alt="deja-vu">
-  <p class="tagline">Persistent memory for your coding agents.</p>
-  <div class="hero-install">
-    <code id="cmd">curl -fsSL https://raw.githubusercontent.com/vshulcz/deja-vu/main/install.sh | sh</code>
-    <button class="copy" onclick="navigator.clipboard.writeText(document.getElementById('cmd').textContent);this.textContent='copied'">copy</button>
+  <h1>Your agents already solved this.<br><span class="grad">deja finds it.</span></h1>
+  <p class="sub">Claude Code, Codex and opencode forget everything between sessions — but the solutions are still on your disk. <code>deja</code> indexes those histories and serves them back, to you and to the agent.</p>
+  <div class="cta">
+    <a class="btn primary" href="#install">Get started</a>
+    <a class="btn" href="https://github.com/vshulcz/deja-vu">Star on GitHub</a>
   </div>
-  <a class="gh" href="https://github.com/vshulcz/deja-vu">GitHub →</a>
+  <div class="hero-install">
+    <span class="p">$</span>
+    <code id="cmd">curl -fsSL https://raw.githubusercontent.com/vshulcz/deja-vu/main/install.sh | sh</code>
+    <button class="copy" data-copy="cmd">copy</button>
+  </div>
 </header>
 
-<div class="demo"><img src="assets/demo.gif" alt="deja demo: searching agent session history from the terminal"></div>
-
-<div class="features">
-  <div class="card">
-    <h3><span>Agent memory via MCP</span></h3>
-    <p>One <code>deja install --all</code> and your agent gets a <code>recall</code> tool. Next session it answers “we fixed this three weeks ago” instead of re-debugging. Responses stay under ~4KB — cheap on context.</p>
-  </div>
-  <div class="card">
-    <h3><span>One index, every harness</span></h3>
-    <p>Claude Code, Codex CLI and opencode all write session logs to your disk. deja indexes them together — a solution found in Codex is recalled inside Claude Code.</p>
-  </div>
-  <div class="card">
-    <h3><span>Local and private</span></h3>
-    <p>No network code exists in the tool. Local files in, local cache out. Warm search over gigabytes of history in under 100&nbsp;ms.</p>
-  </div>
+<div class="term">
+  <div class="bar"><i></i><i></i><i></i><span>deja</span></div>
+  <img src="assets/demo.gif" alt="deja demo: searching agent session history from the terminal">
 </div>
 
-<h2>Install</h2>
-<div class="installs">
-  <div class="inst"><div class="k">curl</div><pre>curl -fsSL https://raw.githubusercontent.com/vshulcz/deja-vu/main/install.sh | sh</pre></div>
-  <div class="inst"><div class="k">Homebrew</div><pre>brew install vshulcz/tap/deja-vu</pre></div>
-  <div class="inst"><div class="k">Go</div><pre>go install github.com/vshulcz/deja-vu/cmd/deja@latest</pre></div>
-  <div class="inst"><div class="k">npm</div><pre>npx @vshulcz/deja-vu "your query"</pre></div>
-</div>
+<section>
+  <h2>Memory your agent actually uses</h2>
+  <p class="lead">After <code style="font-family:var(--mono);font-size:.9em">deja install --all</code>, every agent on your machine gets a <span style="font-family:var(--mono);font-size:.9em">recall</span> tool over MCP.</p>
+  <div class="chat">
+    <div class="msg you"><span class="who">you</span><div class="bubble">have we dealt with jwt refresh rotation before? check your memory</div></div>
+    <div class="msg ai"><span class="who">AI</span><div class="bubble"><div class="tool">→ recall("jwt refresh rotation")</div>Yes — three weeks ago in the <code>api-gateway</code> project (a Codex session). Login broke after key rotation: the jwks cache wasn't reloaded after <code>rotateKey</code>. You fixed it by reloading the cache and adding a clock-skew test. Want me to apply the same pattern here?</div></div>
+  </div>
+</section>
 
-<h2>How it works</h2>
-<p class="how">
-deja parses the local history stores each harness already writes (<code>~/.claude/projects</code>, <code>~/.codex/sessions</code>, opencode's SQLite db) into an incremental inverted index in <code>~/.cache/deja</code>. Cold index over ~3GB takes about ten seconds, once; after that searches are 45–97&nbsp;ms and only changed files get re-read. The MCP server exposes the same index to agents as <code>recall</code> and <code>recall_context</code>. Single Go binary, zero runtime dependencies. Details in <a href="https://github.com/vshulcz/deja-vu/blob/main/docs/ARCHITECTURE.md">ARCHITECTURE.md</a>.
-</p>
+<section>
+  <div class="features">
+    <div class="card">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M21 12l-4-3M21 12l-4 2"/></svg></div>
+      <h3>Agent memory via MCP</h3>
+      <p>Two tools — <code>recall</code> and <code>recall_context</code> — answers stay under ~4KB, cheap on context. One command wires it into Claude Code, Codex and opencode.</p>
+    </div>
+    <div class="card">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+      <h3>One index, every harness</h3>
+      <p>All your harnesses write session logs to disk. deja indexes them together — a fix found in Codex is recalled inside Claude Code.</p>
+    </div>
+    <div class="card">
+      <div class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+      <h3>Local and private</h3>
+      <p>No network code exists in the tool. Local files in, local cache out. A single Go binary with zero dependencies.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="stats">
+    <div class="stat"><b>45–97 ms</b><span>warm search over ~3.3GB</span></div>
+    <div class="stat"><b>~10 s</b><span>cold index, once</span></div>
+    <div class="stat"><b>~2.4%</b><span>index size vs corpus</span></div>
+    <div class="stat"><b>0</b><span>runtime dependencies</span></div>
+  </div>
+</section>
+
+<section id="install">
+  <h2>Install</h2>
+  <p class="lead">Pick one, then run <span style="font-family:var(--mono);font-size:.9em">deja install --all</span> to wire up your agents.</p>
+  <div class="installs">
+    <div class="inst"><span class="k">curl</span><div class="row"><pre id="i1">curl -fsSL https://raw.githubusercontent.com/vshulcz/deja-vu/main/install.sh | sh</pre><button class="copy" data-copy="i1">copy</button></div></div>
+    <div class="inst"><span class="k">Homebrew</span><div class="row"><pre id="i2">brew install vshulcz/tap/deja-vu</pre><button class="copy" data-copy="i2">copy</button></div></div>
+    <div class="inst"><span class="k">Go</span><div class="row"><pre id="i3">go install github.com/vshulcz/deja-vu/cmd/deja@latest</pre><button class="copy" data-copy="i3">copy</button></div></div>
+    <div class="inst"><span class="k">npm</span><div class="row"><pre id="i4">npx @vshulcz/deja-vu "your query"</pre><button class="copy" data-copy="i4">copy</button></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>How it works</h2>
+  <p class="how">
+  deja parses the local history stores each harness already writes (<code>~/.claude/projects</code>, <code>~/.codex/sessions</code>, opencode's SQLite db) into an incremental inverted index in <code>~/.cache/deja</code>. Only changed files are re-read on each run. The MCP server exposes the same index to agents. Details in <a href="https://github.com/vshulcz/deja-vu/blob/main/docs/ARCHITECTURE.md">ARCHITECTURE.md</a> — adding a harness is one parser file.
+  </p>
+</section>
 
 <footer>
-  MIT © <a href="https://github.com/vshulcz">Vladislav Shulcz</a> · <a href="https://github.com/vshulcz/deja-vu">github.com/vshulcz/deja-vu</a>
+  <span>MIT © <a href="https://github.com/vshulcz">Vladislav Shulcz</a></span>
+  <span class="spacer"></span>
+  <a href="https://github.com/vshulcz/deja-vu">GitHub</a>
+  <a href="https://github.com/vshulcz/deja-vu/releases">Releases</a>
+  <a href="https://www.npmjs.com/package/@vshulcz/deja-vu">npm</a>
 </footer>
 
 </div>
+<script>
+document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',()=>{
+  navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent.trim());
+  const t=b.textContent;b.textContent='copied';setTimeout(()=>b.textContent=t,1200);
+}));
+</script>
 </body>
 </html>
