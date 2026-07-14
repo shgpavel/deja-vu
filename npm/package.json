@@ -1,0 +1,22 @@
+{
+  "name": "deja-vu",
+  "version": "0.0.0",
+  "description": "Search AI coding-agent session histories locally.",
+  "license": "MIT",
+  "bin": {
+    "deja": "bin/deja"
+  },
+  "files": [
+    "bin/deja",
+    "package.json"
+  ],
+  "optionalDependencies": {
+    "@vshulcz/deja-vu-darwin-arm64": "0.0.0",
+    "@vshulcz/deja-vu-darwin-amd64": "0.0.0",
+    "@vshulcz/deja-vu-linux-arm64": "0.0.0",
+    "@vshulcz/deja-vu-linux-amd64": "0.0.0",
+    "@vshulcz/deja-vu-windows-arm64": "0.0.0",
+    "@vshulcz/deja-vu-windows-amd64": "0.0.0"
+  },
+  "dejaVuTodo": "TODO: create and publish the platform packages above at release time; each package should contain bin/deja(.exe)."
+}

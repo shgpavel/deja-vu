@@ -1,0 +1,58 @@
+version: 2
+
+project_name: deja-vu
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: deja
+    main: ./cmd/deja
+    binary: deja
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    builds:
+      - deja
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+# TODO: uncomment and set owner/name when the Homebrew tap exists.
+# brews:
+#   - name: deja-vu
+#     repository:
+#       owner: vshulcz
+#       name: homebrew-tap
+#     directory: Formula
+#     homepage: https://github.com/vshulcz/deja-vu
+#     description: Search AI coding-agent session histories locally.
+#     license: MIT

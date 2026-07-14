@@ -3,6 +3,7 @@ package sources
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -57,5 +58,32 @@ func TestParseCodexHistory(t *testing.T) {
 	}
 	if len(ss) != 1 || ss[0].ID != "hist-abc" || ss[0].Messages[0].Text != "history needle" {
 		t.Fatalf("bad history: %#v", ss)
+	}
+}
+
+func TestScanJSONLSkipsMalformedLines(t *testing.T) {
+	tmp := t.TempDir()
+	p := filepath.Join(tmp, "bad.jsonl")
+	data := strings.Join([]string{
+		`{"type":"user","sessionId":"s1","timestamp":"2026-01-02T03:04:05Z","message":{"role":"user","content":"before bad"}}`,
+		`{"type":"user",`,
+		`{"type":"assistant","sessionId":"s1","timestamp":"2026-01-02T03:05:05Z","message":{"role":"assistant","content":"after bad"}}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(p, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ss, err := ParseClaudeFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ss) != 1 || len(ss[0].Messages) != 2 || ss[0].Messages[1].Text != "after bad" {
+		t.Fatalf("bad malformed-line parse: %#v", ss)
+	}
+}
+
+func TestSQLQuoteDoublesSingleQuotes(t *testing.T) {
+	in := `x' or 1=1 --`
+	if got := sqlQuote(in); got != `x'' or 1=1 --` {
+		t.Fatalf("sqlQuote(%q) = %q", in, got)
 	}
 }

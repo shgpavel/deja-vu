@@ -66,6 +66,11 @@ func Ensure(dir string, harness string, force bool, progress io.Writer) error {
 	if dir == "" {
 		dir = DefaultDir()
 	}
+	unlock, err := lockDir(dir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	want := currentFiles(harness)
 	m, err := readManifest(dir)
 	if !force && err == nil && manifestFresh(m, want, "") {
@@ -78,6 +83,11 @@ func EnsureForSearch(dir string, o search.Options, force bool, progress io.Write
 	if dir == "" {
 		dir = DefaultDir()
 	}
+	unlock, err := lockDir(dir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	want := currentFiles(o.Harness)
 	scope := scopeFor(o)
 	m, err := readManifest(dir)
@@ -97,6 +107,11 @@ func Search(dir string, o search.Options) ([]model.Session, error) {
 	if dir == "" {
 		dir = DefaultDir()
 	}
+	unlock, err := lockDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	m, err := readManifest(dir)
 	if err != nil {
 		return nil, err
@@ -590,7 +605,7 @@ func currentFiles(h string) map[string]FileState {
 	paths := map[string]bool{}
 	addWalk := func(root string, pred func(string) bool) {
 		filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-			if err == nil && !d.IsDir() && pred(p) {
+			if err == nil && d.Type()&os.ModeSymlink == 0 && !d.IsDir() && pred(p) {
 				paths[p] = true
 			}
 			return nil
@@ -610,7 +625,7 @@ func currentFiles(h string) map[string]FileState {
 	}
 	out := map[string]FileState{}
 	for p := range paths {
-		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+		if fi, err := os.Lstat(p); err == nil && fi.Mode()&os.ModeSymlink == 0 && !fi.IsDir() {
 			out[p] = FileState{Path: p, Size: fi.Size(), MTime: fi.ModTime().UnixNano()}
 		}
 	}
@@ -723,7 +738,7 @@ func eachRecord(path string, fn func(Record)) error {
 	r := bufio.NewReaderSize(f, 1024*1024)
 	for {
 		rec, err := readRecord(r)
-		if err == io.EOF {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			return nil
 		}
 		if err != nil {

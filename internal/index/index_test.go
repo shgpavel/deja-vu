@@ -173,3 +173,50 @@ func TestIncrementalAppendOneFileBenchmarkStyle(t *testing.T) {
 		t.Fatalf("bad incremental search hits: %#v", hits)
 	}
 }
+
+func TestEachRecordIgnoresTruncatedTail(t *testing.T) {
+	tmp := t.TempDir()
+	p := filepath.Join(tmp, "records.bin")
+	f, err := os.Create(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writeRecord(f, Record{Key: "claude:s1", SourcePath: "s1.jsonl", Role: "user", Text: "complete"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Write([]byte{99, 0, 0, 0, '{'}); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var got []Record
+	if err := eachRecord(p, func(r Record) { got = append(got, r) }); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Text != "complete" {
+		t.Fatalf("bad records: %#v", got)
+	}
+}
+
+func TestCurrentFilesSkipsSymlinks(t *testing.T) {
+	tmp := t.TempDir()
+	claudeRoot := filepath.Join(tmp, "claude")
+	proj := filepath.Join(claudeRoot, "project")
+	outside := filepath.Join(tmp, "outside.jsonl")
+	if err := os.MkdirAll(proj, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(outside, []byte(`{"type":"user"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(proj, "linked.jsonl")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	t.Setenv("DEJA_CLAUDE_ROOT", claudeRoot)
+	files := currentFiles("claude")
+	if _, ok := files[link]; ok {
+		t.Fatalf("symlink was indexed: %#v", files[link])
+	}
+}

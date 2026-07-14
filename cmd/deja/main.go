@@ -222,7 +222,7 @@ func printSources() {
 func pathSize(root string) int64 {
 	var total int64
 	filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
+		if err == nil && d.Type()&os.ModeSymlink == 0 && !d.IsDir() {
 			if fi, e := d.Info(); e == nil {
 				total += fi.Size()
 			}
