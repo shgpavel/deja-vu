@@ -121,7 +121,7 @@ func scanJSONLFromOffset(path string, offset int64, fn func(map[string]any)) err
 
 func walkFiles(root string, pred func(string) bool) []string {
 	var out []string
-	filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err == nil && d.Type()&os.ModeSymlink == 0 && !d.IsDir() && pred(p) {
 			out = append(out, p)
 		}

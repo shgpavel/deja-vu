@@ -616,7 +616,7 @@ func setOpencodeLastUpdated(files map[string]FileState, sessions map[string]Sess
 func currentFiles(h string) map[string]FileState {
 	paths := map[string]bool{}
 	addWalk := func(root string, pred func(string) bool) {
-		filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 			if err == nil && d.Type()&os.ModeSymlink == 0 && !d.IsDir() && pred(p) {
 				paths[p] = true
 			}

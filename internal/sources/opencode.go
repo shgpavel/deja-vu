@@ -144,8 +144,8 @@ func OpencodeCounts() (sessions, messages int, err error) {
 	}
 	f := strings.Split(strings.TrimSpace(string(b)), "|")
 	if len(f) == 2 {
-		fmt.Sscanf(f[0], "%d", &sessions)
-		fmt.Sscanf(f[1], "%d", &messages)
+		_, _ = fmt.Sscanf(f[0], "%d", &sessions)
+		_, _ = fmt.Sscanf(f[1], "%d", &messages)
 	}
 	return
 }
