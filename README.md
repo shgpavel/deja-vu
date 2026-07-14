@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/logo.svg" width="340" alt="deja-vu"></p>
 
-<p align="center"><strong>Persistent memory for your coding agents.</strong></p>
+<p align="center"><strong>Your agents already solved this. deja finds it.</strong></p>
 
 <p align="center"><a href="https://vshulcz.github.io/deja-vu/">vshulcz.github.io/deja-vu</a></p>
 
@@ -14,7 +14,7 @@
 
 <p align="center"><img src="assets/demo.gif" alt="deja demo"></p>
 
-Coding agents forget everything between sessions. The solutions are still on your disk — Claude Code, Codex and opencode write every conversation to local files, gigabytes of debugged problems and design decisions you can't search.
+Claude Code, Codex and opencode write every conversation to local files — gigabytes of debugged problems and design decisions you can't search. deja is a zero-dependency binary that indexes those histories, retroactively, in about ten seconds.
 
 `deja` indexes those histories and serves them back:
 
@@ -116,6 +116,12 @@ Local inverted index in `~/.cache/deja`: parse JSONL/SQLite stores → `records.
 **Does anything leave my machine?** No. There is no network code in the tool.
 
 **How is this different from `/resume` or a history viewer?** Those are per-harness and per-project. `deja` is one index across every harness and project on the machine, plus an MCP tool so the *agent* can search it.
+
+**How is this different from cass?**
+[cass](https://github.com/Dicklesworthstone/coding_agent_session_search) is the kitchen-sink take on the same idea: 22 providers, Rust, optional semantic embeddings, a TUI. deja is the opposite bet — one small Go binary, pure lexical, the three harnesses I actually run, zero things to configure or download. If you want hybrid search over everything, use cass. If you want grep-fast recall that installs in ten seconds, that's deja.
+
+**And from MemPalace / Mem0 / Letta?**
+Those are memory *platforms*: embeddings, vector stores, capture hooks or APIs that record sessions going forward. deja has no capture step at all — it indexes what your agents already wrote to disk, including months of history from before you installed it. They can coexist.
 
 **What about Windows?** Builds exist and file locking is implemented; macOS/Linux are the tested paths today.
 
