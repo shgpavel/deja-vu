@@ -2,3 +2,4 @@ fixtures/private/
 .venv/
 /deja
 .build.log
+fixtures/synthetic/opencode.db
