@@ -20,6 +20,7 @@ release-dry:
 	goreleaser release --snapshot --clean
 
 demo:
+	fixtures/synthetic/make_opencode_db.sh
 	DEJA_CLAUDE_ROOT=$$(pwd)/fixtures/synthetic/claude \
 	DEJA_CODEX_ROOT=$$(pwd)/fixtures/synthetic/codex \
 	DEJA_OPENCODE_DB=$$(pwd)/fixtures/synthetic/opencode.db \

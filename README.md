@@ -62,12 +62,11 @@ deja "incremental indexing bug"
 
 ```text
 $ deja --harness claude --since 30d "jwt refresh token"
-[claude · api · 2026-07-08 · 2 matches · 8f31c0a9]
-user: login started failing after refresh token rotation; jwt kid mismatch in tests
-assistant: fixed by reloading jwks cache after rotateKey and adding a clock-skew test
-
-[claude · web · 2026-07-01 · 1 match · b77d91e2]
-assistant: refresh token cookie needed SameSite=Lax in local callback flow
+[claude] api        · Jul 8 · 8f31c0a9 — 2 matches
+  login started failing after refresh token rotation; jwt kid mismatch in tests
+  fixed by reloading jwks cache after rotateKey and adding a clock-skew test
+[claude] web        · Jul 1 · b77d91e2 — 1 matches
+  refresh token cookie needed SameSite=Lax in local callback flow
 ```
 
 ## MCP tools
@@ -161,7 +160,7 @@ About 2.4% of the source corpus in current measurements.
 The code has Windows file locking, but the main tested path is macOS/Linux for now.
 
 **How do I exclude a project?**  
-Move or delete that history from the agent's local store before indexing. A first-class exclude file is not built yet.
+Not built yet. A first-class `--exclude` option is planned. Today you can point `DEJA_CLAUDE_ROOT`, `DEJA_CODEX_ROOT`, or `DEJA_OPENCODE_DB` at a filtered copy of your agent history.
 
 **How do I wipe it?**
 

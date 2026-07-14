@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/vshulcz/deja-vu/internal/index"
 	"github.com/vshulcz/deja-vu/internal/search"
@@ -25,7 +26,7 @@ type rpcRequest struct {
 func serveMCP(r io.Reader, w io.Writer) error {
 	s := bufio.NewScanner(r)
 	// MCP messages are line-delimited JSON here. Allow large, but bounded, client lines.
-	s.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	s.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
 	enc := json.NewEncoder(w)
 	for s.Scan() {
 		line := strings.TrimSpace(s.Text())
@@ -50,7 +51,15 @@ func serveMCP(r io.Reader, w io.Writer) error {
 			return err
 		}
 	}
-	return s.Err()
+	if err := s.Err(); err != nil {
+		// Oversized or malformed client frames are reported as JSON-RPC parse errors,
+		// then the stdio server exits gracefully instead of silently hard-stopping.
+		writeRPCError(enc, nil, -32700, "parse error")
+		if os.Getenv("DEJA_DEBUG") == "1" {
+			fmt.Fprintf(os.Stderr, "deja mcp scanner error: %v\n", err)
+		}
+	}
+	return nil
 }
 
 func handleMCP(req rpcRequest) (any, int, string) {
@@ -59,7 +68,7 @@ func handleMCP(req rpcRequest) (any, int, string) {
 		return map[string]any{
 			"protocolVersion": mcpProtocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "deja", "version": "0.0.0"},
+			"serverInfo":      map[string]any{"name": "deja", "version": version},
 		}, 0, ""
 	case "tools/list":
 		return map[string]any{"tools": []map[string]any{
@@ -170,9 +179,19 @@ func recallText(q, harness string, limit, budget int) (string, error) {
 	}
 	out := b.String()
 	if len(out) > budget {
-		out = out[:budget]
+		out = trimUTF8(out, budget)
 	}
 	return out, nil
+}
+
+func trimUTF8(s string, budget int) string {
+	if len(s) <= budget {
+		return s
+	}
+	for budget > 0 && !utf8.RuneStart(s[budget]) {
+		budget--
+	}
+	return s[:budget]
 }
 
 func recallContext(q string) (string, error) {

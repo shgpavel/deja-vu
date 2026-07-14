@@ -13,7 +13,7 @@ try {
   bin = require.resolve(path.join(pkg, 'bin', exe));
 } catch (err) {
   console.error(`deja: missing optional binary package ${pkg}`);
-  console.error('deja: TODO publish the platform package, or install via: go install github.com/vshulcz/deja-vu/cmd/deja@latest');
+  console.error('deja: install via: go install github.com/vshulcz/deja-vu/cmd/deja@latest');
   process.exit(1);
 }
 

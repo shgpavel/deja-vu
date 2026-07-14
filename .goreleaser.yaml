@@ -77,7 +77,7 @@ brews:
       name: homebrew-tap
     directory: Formula
     homepage: https://github.com/vshulcz/deja-vu
-    description: Search AI coding-agent session histories locally.
+    description: Persistent memory for your coding agents
     license: MIT
 
 # nfpms intentionally omitted for now; add .deb/.rpm packaging when distro packages are needed.
