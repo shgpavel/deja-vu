@@ -1,10 +1,22 @@
+<p align=center><img src=assets/logo.svg width=340></p>
+
 Persistent memory for your coding agents.
 
-<!-- TODO: add demo gif here. -->
+<p align=center><img src=assets/demo.gif></p>
+
+<p align=center>
+  <a href="https://github.com/vshulcz/deja-vu/actions/workflows/ci.yml"><img src="https://github.com/vshulcz/deja-vu/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://goreportcard.com/report/github.com/vshulcz/deja-vu"><img src="https://goreportcard.com/badge/github.com/vshulcz/deja-vu" alt="Go Report Card"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+</p>
 
 # deja-vu
 
-`deja` indexes every session Claude Code, Codex CLI and opencode wrote on your machine, and serves it back — to you (`deja <query>`) and to your agents (MCP `recall`).
+## Why
+
+Agents forget everything between sessions.
+Your machine already holds every solution they found.
+`deja` indexes those histories and serves them back — to you and to the agent.
 
 ## Quickstart
 
@@ -13,68 +25,69 @@ go install github.com/vshulcz/deja-vu/cmd/deja@latest
 deja install --all
 ```
 
-Then ask your agent. It can call MCP `recall` and answer: we solved this before.
+Then ask your agent:
 
-Manual CLI use still works:
+> Use deja to recall how we fixed the migration rollback test.
+
+Manual CLI use:
 
 ```sh
 deja "incremental indexing bug"
-deja --harness claude --since 30d "panic|race" --re
-deja ctx "database migration" > /tmp/deja-context.md
 ```
 
-## Install
+## Example output
+
+```text
+$ deja --harness claude --since 30d "jwt refresh token"
+[claude · api · 2026-07-08 · 2 matches · 8f31c0a9]
+user: login started failing after refresh token rotation; jwt kid mismatch in tests
+assistant: fixed by reloading jwks cache after rotateKey and adding a clock-skew test
+
+[claude · web · 2026-07-01 · 1 match · b77d91e2]
+assistant: refresh token cookie needed SameSite=Lax in local callback flow
+```
+
+## MCP tools
+
+`deja mcp` runs a stdio MCP server for agent integrations.
+
+| Tool | Arguments | Output |
+| --- | --- | --- |
+| `recall` | `query`, optional `harness`, optional `limit` | Dense matching snippets, capped around 4KB by default. |
+| `recall_context` | `query` | Markdown context for the best match, same shape as `deja ctx`. |
+
+Install targets are idempotent and create one backup before editing config:
 
 ```sh
-go install github.com/vshulcz/deja-vu/cmd/deja@latest
+deja install claude-code
+deja install codex
+deja install opencode
+deja install --all
 ```
 
-From this checkout, build the binary, then install agent integrations:
+## CLI reference
 
-```sh
-go build ./cmd/deja
-./deja install --all
-```
+| Command | Flags / args | Notes |
+| --- | --- | --- |
+| `deja <query>` | `--json`, `--re`, `--rebuild`, `--harness <name>`, `--project <text>`, `--since <duration>`, `--role <role>` | Search local history. Durations accept Go durations and `30d`. |
+| `deja ctx <query\|id-prefix>` | none | Print a compact markdown digest for agent context. |
+| `deja show <id-prefix>` | none | Print one matching session. |
+| `deja last [n]` | optional count | List recent sessions. Default `10`. |
+| `deja sources` | none | Print discovered stores, counts, and sizes. |
+| `deja mcp` | none | Run the stdio MCP server. |
+| `deja install <target>` | `claude-code`, `codex`, `opencode`, `--all` | Add the MCP entry to local agent config. |
+| `deja uninstall <target>` | `claude-code`, `codex`, `opencode`, `--all` | Remove the MCP entry. |
+| `deja version` | `--version`, `-version` | Print the build version. Set with `-ldflags "-X main.version=vX.Y.Z"`. |
 
-`deja install <target>` is idempotent and creates `<config>.bak` once before editing. Targets: `claude-code`, `codex`, `opencode`. Use `deja uninstall <target>` to remove the MCP entry.
-
-## Agent memory via MCP
-
-`deja mcp` runs a stdio MCP server. It exposes:
-
-- `recall {query, harness?, limit?}`: dense, agent-readable matching sessions with snippets, capped under about 4KB by default for token economy.
-- `recall_context {query}`: the same markdown digest as `deja ctx` for the best match.
-
-## Harness support
+## Harnesses
 
 | Harness | Store | Status | Install target |
 | --- | --- | --- | --- |
-| Claude Code | `~/.claude/projects/<project-dir>/**/*.jsonl` including `subagents/*.jsonl` | supported | `deja install claude-code` |
+| Claude Code | `~/.claude/projects/<project-dir>/**/*.jsonl`, including `subagents/*.jsonl` | supported | `deja install claude-code` |
 | Codex CLI | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` and `~/.codex/history.jsonl` | supported | `deja install codex` |
 | opencode | `~/.local/share/opencode/opencode.db` | supported | `deja install opencode` |
 | aider | local chat history | planned | — |
 | gemini | local chat history | planned | — |
-
-## Context pipes
-
-`deja ctx <query|session-id-prefix>` prints a compact markdown digest for agent context: session metadata, matching user problem statements, and nearby assistant conclusions, capped around 8KB.
-
-```sh
-claude "Use this prior context: $(deja ctx 'incremental indexing bug')"
-opencode run "Use this prior context: $(deja ctx c63004c3)"
-```
-
-## Performance
-
-On a real mixed corpus (327 Claude/Codex sessions + 926 opencode sessions, about 3GB of local history), warm search is about 35ms. The index is incremental: appending to one session file updates that one source file instead of rebuilding the corpus.
-
-## How it works
-
-`deja` builds a local inverted index in `~/.cache/deja` and refreshes only changed source files. Claude and Codex stores are streamed from JSONL. opencode is read from the local SQLite database via the `sqlite3` command-line tool because Go stdlib has no SQLite driver.
-
-Privacy: all local. Nothing leaves your machine. `deja` reads local history files and writes a local cache only.
-
-Token economy: MCP `recall` is dense text under about 4KB by default; use `recall_context` only when the agent needs the fuller digest.
 
 Environment overrides for tests or custom stores:
 
@@ -83,4 +96,53 @@ DEJA_CLAUDE_ROOT=/path/to/claude/projects
 DEJA_CODEX_ROOT=/path/to/codex
 DEJA_OPENCODE_DB=/path/to/opencode.db
 DEJA_INDEX_DIR=/path/to/deja/index.db
+```
+
+## Performance
+
+Measured on a local mixed corpus of about 3.3GB:
+
+| Case | Result |
+| --- | --- |
+| Cold index | ~10s once |
+| Warm search | 45-97ms |
+| Index size | ~2.4% of corpus |
+
+The index is incremental. Appending to one JSONL session updates that source file instead of rebuilding the corpus.
+
+## How it works
+
+1. Discover Claude, Codex, and opencode local history stores.
+2. Parse source files into sessions and messages.
+3. Write `records.bin` plus token bucket files under `~/.cache/deja/index.db`.
+4. Track file size, mtime, and session metadata in `manifest.json`.
+5. Serve searches through the CLI or the MCP stdio server.
+
+Developer details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Privacy
+
+All local. Nothing leaves your machine.
+
+`deja` reads local history files and writes a local cache only.
+
+## FAQ
+
+**Does it send data anywhere?**  
+No. It has no network path for indexing or search.
+
+**How big is the index?**  
+About 2.4% of the source corpus in current measurements.
+
+**What about Windows?**  
+The code has Windows file locking, but the main tested path is macOS/Linux for now.
+
+**How do I exclude a project?**  
+Move or delete that history from the agent's local store before indexing. A first-class exclude file is not built yet.
+
+**How do I wipe it?**
+
+```sh
+deja uninstall --all
+rm -rf ~/.cache/deja
 ```
