@@ -83,18 +83,18 @@ func ParseOpencodeDBWhere(db, where string, limit int) ([]model.Session, error) 
 	dec.UseNumber()
 	tok, err := dec.Token()
 	if err != nil {
-		cmd.Wait()
+		_ = cmd.Wait()
 		return nil, err
 	}
 	if d, ok := tok.(json.Delim); !ok || d != '[' {
-		cmd.Wait()
+		_ = cmd.Wait()
 		return nil, fmt.Errorf("bad sqlite json")
 	}
 	by := map[string]*model.Session{}
 	for dec.More() {
 		var r map[string]any
 		if err := dec.Decode(&r); err != nil {
-			cmd.Wait()
+			_ = cmd.Wait()
 			return nil, err
 		}
 		id, _ := r["id"].(string)
@@ -123,7 +123,7 @@ func ParseOpencodeDBWhere(db, where string, limit int) ([]model.Session, error) 
 		s.Messages = append(s.Messages, model.Message{Role: role, Text: txt, Time: t})
 	}
 	if _, err := dec.Token(); err != nil {
-		cmd.Wait()
+		_ = cmd.Wait()
 		return nil, err
 	}
 	if err := cmd.Wait(); err != nil {

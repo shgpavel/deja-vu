@@ -131,7 +131,7 @@ func mergeSessions(in []model.Session) []model.Session {
 
 func Print(w io.Writer, hits []Hit, o Options) {
 	if o.JSON {
-		json.NewEncoder(w).Encode(hits)
+		_ = json.NewEncoder(w).Encode(hits)
 		return
 	}
 	color := colorOK(w)
