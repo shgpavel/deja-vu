@@ -960,7 +960,7 @@ func scanRecords(dir string, m Manifest, o search.Options, offsets []int64) ([]m
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		offsets = sortedUniqueOffsets(offsets)
 		for _, off := range offsets {
 			if r, err := readRecordAt(f, off); err == nil && recordMatchesQuery(r, o) {
@@ -1123,7 +1123,7 @@ func eachRecord(path string, fn func(Record)) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	r := bufio.NewReaderSize(f, 1024*1024)
 	for {
 		rec, err := readRecord(r)
@@ -1448,7 +1448,7 @@ func writeBucket(p string, data map[string][]posting) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if _, err := f.Write(bucketMagic); err != nil {
 		return err
 	}
@@ -1485,7 +1485,7 @@ func readBucket(p string) (map[string][]posting, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	out := make(map[string][]posting, len(entries))
 	for _, e := range entries {
 		b := make([]byte, e.n)
@@ -1502,7 +1502,7 @@ func readBucketToken(p, tok string) ([]posting, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	for _, e := range entries {
 		if e.tok != tok {
 			continue
@@ -1606,7 +1606,7 @@ func writeGob(p string, v any) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	return gob.NewEncoder(f).Encode(v)
 }
 func readGob(p string, v any) error {
@@ -1614,7 +1614,7 @@ func readGob(p string, v any) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if err := gob.NewDecoder(f).Decode(v); err != nil {
 		return fmt.Errorf("read %s: %w", filepath.Base(p), err)
 	}
