@@ -13,6 +13,7 @@ type Session struct {
 	Harness  string    `json:"harness"`
 	Project  string    `json:"project"`
 	Path     string    `json:"path,omitempty"`
+	Title    string    `json:"title,omitempty"`
 	Started  time.Time `json:"started"`
 	Updated  time.Time `json:"updated"`
 	Messages []Message `json:"messages,omitempty"`

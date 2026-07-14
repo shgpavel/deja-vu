@@ -38,24 +38,6 @@ func loadAll(h string) []model.Session {
 	return ss
 }
 
-func loadForSearch(o search.Options) []model.Session {
-	var ss []model.Session
-	if o.Harness == "" || o.Harness == "claude" {
-		ss = append(ss, sources.LoadClaude()...)
-	}
-	if o.Harness == "" || o.Harness == "codex" {
-		ss = append(ss, sources.LoadCodex()...)
-	}
-	if o.Harness == "" || o.Harness == "opencode" {
-		if o.Regex {
-			ss = append(ss, sources.LoadOpencodeRecent(200)...)
-		} else {
-			ss = append(ss, sources.LoadOpencodeMatching(o.Query)...)
-		}
-	}
-	return ss
-}
-
 func run(args []string) error {
 	if len(args) == 0 {
 		usage()
@@ -82,9 +64,10 @@ func run(args []string) error {
 		if len(args) < 2 {
 			return fmt.Errorf("show needs id-prefix")
 		}
-		ss := append(loadAll("claude"), loadAll("codex")...)
-		ss = append(ss, sources.LoadOpencodePrefix(args[1])...)
-		s, ok := search.FindByPrefix(ss, args[1])
+		s, ok, err := findByPrefix(args[1])
+		if err != nil {
+			return err
+		}
 		if !ok {
 			return fmt.Errorf("no session matches %q", args[1])
 		}
@@ -97,9 +80,11 @@ func run(args []string) error {
 		}
 		q := strings.Join(args[1:], " ")
 		if !strings.Contains(q, " ") && len(q) >= 6 {
-			ss := append(loadAll("claude"), loadAll("codex")...)
-			ss = append(ss, sources.LoadOpencodePrefix(q)...)
-			if s, ok := search.FindByPrefix(ss, q); ok {
+			s, ok, err := findByPrefix(q)
+			if err != nil {
+				return err
+			}
+			if ok {
 				search.PrintContext(os.Stdout, s, "")
 				return nil
 			}
@@ -129,10 +114,20 @@ func run(args []string) error {
 				n = x
 			}
 		}
-		ss := append(loadAll("claude"), loadAll("codex")...)
-		ss = append(ss, sources.LoadOpencodeRecent(n)...)
-		for _, s := range search.Recent(ss, n) {
-			fmt.Printf("[%s · %s · %s · %s]\n", s.Harness, s.Project, s.Updated.Format("2006-01-02"), s.ID)
+		ss, err := recent(n)
+		if err != nil {
+			return err
+		}
+		for _, s := range ss {
+			fmt.Printf("[%s · %s · %s · %s]", s.Harness, s.Project, s.Updated.Format("2006-01-02"), s.ID)
+			title := s.Title
+			if title == "" {
+				title = firstUserTitle(s)
+			}
+			if title != "" {
+				fmt.Printf(" %s", title)
+			}
+			fmt.Println()
 		}
 		return nil
 	}
@@ -169,6 +164,44 @@ func run(args []string) error {
 
 func printNoMatches(w io.Writer, q string, n int) {
 	fmt.Fprintf(w, "deja: no matches for %q (searched %d sessions across claude/codex/opencode) — try fewer words or --re\n", q, n)
+}
+
+func findByPrefix(p string) (model.Session, bool, error) {
+	if err := index.Ensure(index.DefaultDir(), "", false, os.Stderr); err == nil {
+		if s, ok, err := index.FindByPrefix(index.DefaultDir(), p); err == nil {
+			return s, ok, nil
+		}
+	}
+	ss := append(loadAll("claude"), loadAll("codex")...)
+	ss = append(ss, sources.LoadOpencodePrefix(p)...)
+	s, ok := search.FindByPrefix(ss, p)
+	return s, ok, nil
+}
+
+func recent(n int) ([]model.Session, error) {
+	if err := index.Ensure(index.DefaultDir(), "", false, os.Stderr); err == nil {
+		if ss, err := index.Recent(index.DefaultDir(), n); err == nil {
+			return ss, nil
+		}
+	}
+	ss := append(loadAll("claude"), loadAll("codex")...)
+	ss = append(ss, sources.LoadOpencodeRecent(n)...)
+	return search.Recent(ss, n), nil
+}
+
+func firstUserTitle(s model.Session) string {
+	for _, msg := range s.Messages {
+		if msg.Role != "user" {
+			continue
+		}
+		t := strings.Join(strings.Fields(msg.Text), " ")
+		r := []rune(t)
+		if len(r) > 60 {
+			return strings.TrimSpace(string(r[:60])) + "…"
+		}
+		return t
+	}
+	return ""
 }
 
 func parseSearch(args []string) (search.Options, error) {
@@ -273,7 +306,12 @@ func usage() {
 
 Usage:
   deja [flags] <query>
+  deja show <id-prefix>
   deja ctx <query|id-prefix>
+  deja last [n]
+  deja sources
+  deja mcp
+  deja version
   deja install <claude-code|codex|opencode|--all>
   deja uninstall <claude-code|codex|opencode|--all>
 
@@ -284,5 +322,5 @@ Examples:
   deja ctx "schema migration rollback" > /tmp/deja-context.md
   deja install --all
 
-Run README.md for the full CLI reference.`)
+See README.md for the full CLI reference.`)
 }

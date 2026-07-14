@@ -20,7 +20,7 @@ import (
 	"github.com/vshulcz/deja-vu/internal/sources"
 )
 
-const version = 4
+const version = 5
 const maxIndexedText = 64 * 1024
 
 var lastIngestFiles int
@@ -33,8 +33,8 @@ type FileState struct {
 }
 
 type SessionMeta struct {
-	ID, Harness, Project, Path string
-	Started, Updated           time.Time
+	ID, Harness, Project, Path, Title string
+	Started, Updated                  time.Time
 }
 
 type Manifest struct {
@@ -140,6 +140,65 @@ func Search(dir string, o search.Options) ([]model.Session, error) {
 	return scanRecords(dir, m, o, offsets)
 }
 
+func Recent(dir string, n int) ([]model.Session, error) {
+	if dir == "" {
+		dir = DefaultDir()
+	}
+	unlock, err := lockDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	m, err := readManifest(dir)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]model.Session, 0, len(m.Sessions))
+	for _, meta := range m.Sessions {
+		out = append(out, sessionFromMeta(meta))
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Updated.After(out[j].Updated) })
+	if n > 0 && len(out) > n {
+		out = out[:n]
+	}
+	return out, nil
+}
+
+func FindByPrefix(dir, p string) (model.Session, bool, error) {
+	if dir == "" {
+		dir = DefaultDir()
+	}
+	unlock, err := lockDir(dir)
+	if err != nil {
+		return model.Session{}, false, err
+	}
+	defer unlock()
+	m, err := readManifest(dir)
+	if err != nil {
+		return model.Session{}, false, err
+	}
+	var matches []SessionMeta
+	for _, meta := range m.Sessions {
+		if strings.HasPrefix(meta.ID, p) {
+			matches = append(matches, meta)
+		}
+	}
+	if len(matches) == 0 {
+		return model.Session{}, false, nil
+	}
+	sort.Slice(matches, func(i, j int) bool { return matches[i].Updated.After(matches[j].Updated) })
+	meta := matches[0]
+	s := sessionFromMeta(meta)
+	recs, err := recordsForKey(filepath.Join(dir, "records.bin"), meta.Harness+":"+meta.ID)
+	if err != nil {
+		return model.Session{}, false, err
+	}
+	for _, r := range recs {
+		s.Messages = append(s.Messages, model.Message{Role: r.Role, Text: r.Text, Time: r.Time})
+	}
+	return s, true, nil
+}
+
 func rebuild(dir string, harness string, scope string, files map[string]FileState) error {
 	lastIngestFiles = len(files)
 	tmp := dir + ".tmp"
@@ -165,7 +224,7 @@ func rebuild(dir string, harness string, scope string, files map[string]FileStat
 				s.Updated = old.Updated
 			}
 		}
-		m.Sessions[key] = SessionMeta{ID: s.ID, Harness: s.Harness, Project: s.Project, Path: s.Path, Started: s.Started, Updated: s.Updated}
+		m.Sessions[key] = metaForSession(s)
 		for _, msg := range s.Messages {
 			text := msg.Text
 			if len(text) > maxIndexedText {
@@ -249,7 +308,7 @@ func writeSessions(tmp, dir string, ss []model.Session, files map[string]FileSta
 				s.Updated = old.Updated
 			}
 		}
-		m.Sessions[key] = SessionMeta{ID: s.ID, Harness: s.Harness, Project: s.Project, Path: s.Path, Started: s.Started, Updated: s.Updated}
+		m.Sessions[key] = metaForSession(s)
 		for _, msg := range s.Messages {
 			text := msg.Text
 			if len(text) > maxIndexedText {
@@ -288,6 +347,42 @@ func writeSessions(tmp, dir string, ss []model.Session, files map[string]FileSta
 	}
 	os.RemoveAll(dir)
 	return os.Rename(tmp, dir)
+}
+
+func metaForSession(s model.Session) SessionMeta {
+	return SessionMeta{ID: s.ID, Harness: s.Harness, Project: s.Project, Path: s.Path, Title: sessionTitle(s), Started: s.Started, Updated: s.Updated}
+}
+
+func sessionFromMeta(meta SessionMeta) model.Session {
+	return model.Session{ID: meta.ID, Harness: meta.Harness, Project: meta.Project, Path: meta.Path, Title: meta.Title, Started: meta.Started, Updated: meta.Updated}
+}
+
+func sessionTitle(s model.Session) string {
+	for _, msg := range s.Messages {
+		if msg.Role == "user" {
+			return truncateTitle(msg.Text, 60)
+		}
+	}
+	return ""
+}
+
+func truncateTitle(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return strings.TrimSpace(string(r[:n])) + "…"
+}
+
+func recordsForKey(path, key string) ([]Record, error) {
+	var out []Record
+	err := eachRecord(path, func(r Record) {
+		if r.Key == key {
+			out = append(out, r)
+		}
+	})
+	return out, err
 }
 
 func updateIndex(dir, harness, scope string, files map[string]FileState, force bool, progress io.Writer) error {
@@ -399,7 +494,7 @@ func updateIndex(dir, harness, scope string, files map[string]FileState, force b
 	}
 	for _, s := range replacements {
 		key := s.Harness + ":" + s.ID
-		m.Sessions[key] = SessionMeta{ID: s.ID, Harness: s.Harness, Project: s.Project, Path: s.Path, Started: s.Started, Updated: s.Updated}
+		m.Sessions[key] = metaForSession(s)
 		for _, msg := range s.Messages {
 			text := msg.Text
 			if len(text) > maxIndexedText {
@@ -488,7 +583,7 @@ func appendIncremental(dir, harness, scope string, old Manifest, files map[strin
 			key := s.Harness + ":" + s.ID
 			meta := m.Sessions[key]
 			if meta.ID == "" {
-				meta = SessionMeta{ID: s.ID, Harness: s.Harness, Project: s.Project, Path: s.Path, Started: s.Started, Updated: s.Updated}
+				meta = metaForSession(s)
 			}
 			if meta.Started.IsZero() || (!s.Started.IsZero() && s.Started.Before(meta.Started)) {
 				meta.Started = s.Started
@@ -501,6 +596,9 @@ func appendIncremental(dir, harness, scope string, old Manifest, files map[strin
 			}
 			if s.Path != "" {
 				meta.Path = s.Path
+			}
+			if meta.Title == "" {
+				meta.Title = sessionTitle(s)
 			}
 			m.Sessions[key] = meta
 			for _, msg := range s.Messages {
