@@ -26,7 +26,7 @@ Claude Code, Codex, opencode, aider, Gemini CLI, Cursor, Antigravity and Grok Bu
 | **Share** | `deja share <id>` — hand a colleague a sanitized digest of a session, secrets already scrubbed |
 | **Sync** | `deja sync export/import` — move memory between machines, append-only, idempotent |
 
-One binary. No models to download, no services to run, and deja never uploads your session data. (Explicit sync and recalled context remain under your control; opencode and Cursor IDE indexing shell out to the `sqlite3` CLI, preinstalled on macOS and most Linux distros; Cursor CLI transcripts do not need it.)
+One binary. No models to download, no services to run, nothing leaves your machine unless you sync or share it. (opencode and Cursor IDE indexing shell out to the `sqlite3` CLI, preinstalled on macOS and most Linux distros; Cursor CLI transcripts do not need it.)
 
 ## Install
 
@@ -81,7 +81,7 @@ $ deja "jwt refresh token"
 | `deja update` | Download the latest GitHub release, verify its checksum, and replace the current binary. |
 | `deja statusline` | One line for your status bar: recalls served to agents today. `deja install statusline` wires it into Claude Code (won't touch an existing statusline). |
 
-`deja update` is for standalone binary installs. For Homebrew or npm installations, use the package manager so its installed-version metadata stays consistent.
+`deja update` is for standalone installs. Homebrew and npm installs update through the package manager.
 
 Context piping without MCP:
 
@@ -171,7 +171,7 @@ Local inverted index in `~/.cache/deja`: parse JSONL/SQLite stores → redact cr
 
 ## FAQ
 
-**Does anything leave my machine?** Indexing and search are fully local, and deja makes no session-data upload requests. Explicit sync moves sanitized records; recalled context passed to an agent follows that harness/provider's data policy. `deja update` only downloads release metadata and binaries from GitHub.
+**Does anything leave my machine?** No. Indexing and search are fully local. `sync` writes files to a directory you choose, moving them is up to you. The only network call is `deja update`, which downloads releases from GitHub.
 
 **How is this different from cass?**
 [cass](https://github.com/Dicklesworthstone/coding_agent_session_search) is the kitchen-sink take on session search: 22 providers, Rust, optional semantic embeddings, a TUI. deja is the opposite bet — one small Go binary, pure lexical, eight harnesses, zero setup — plus the memory-layer pieces around it: auto-recall, redaction, share, sync.
